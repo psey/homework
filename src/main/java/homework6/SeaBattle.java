@@ -8,87 +8,131 @@ import java.util.Arrays;
 import java.util.Random;
 
 public class SeaBattle {
-    static char battlefield[][];
+
     static int battlefieldSize = 10;
-    static ArrayList<Integer> arrayOfShips = new ArrayList<Integer>(Arrays.asList(4, 3, 3, 2, 2, 2, 1, 1, 1, 1));
-    static ArrayList<Ship> listOfShip = new ArrayList<>();
+    static ArrayList<Integer> arrayOfShips = new ArrayList<>(Arrays.asList(4, 3, 3, 2, 2, 2, 1, 1, 1, 1));
     static char[] rowName = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'};
-    static char shipSign = '@';
     static char areaCloseToShip = '*';
     static char successShoot = 'X';
     static char shootOver = '0';
     static int hitCol, hitRow;
+    static ArrayList<Player> players = new ArrayList<>();
 
 
     public static void main(String[] args) throws IOException {
-        // Генерим поле для игры
-        // сюда всталю метод с Шип инфо
 
-        battlefieldInit();
+        playerInit();
+        prepareBattelfieldForPlayers();
+
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        boolean gameInProgress = true;
+        int curPlayerIndex = 0;
+        while (gameInProgress) {
+
+            boolean hit = true;
+            //  System.out.println("Твое полюшко-поле " + players.get(curPlayerIndex).name);
+            // printBattlefield(players.get(curPlayerIndex).battlefield);
+            // System.out.println();
+            System.out.println("Куда ты бил " + players.get(curPlayerIndex).name);
+            printBattlefield(players.get(curPlayerIndex).enemyBattlefield);
+            System.out.println();
+            while (hit) {
+
+                enterShipPosition(reader);
+                char c = players.get(1 - curPlayerIndex).battlefield[hitRow][hitCol];
+                hit = makeMove(players.get(curPlayerIndex), players.get(1 - curPlayerIndex), c);
+                printBattlefield(players.get(curPlayerIndex).enemyBattlefield);
+                gameInProgress = !isFinished(players.get(0), players.get(1));
+                if (!gameInProgress) break;
+                System.out.println();
+
+
+            }
+            shipInfo(players.get(1 - curPlayerIndex));
+            curPlayerIndex = 1 - curPlayerIndex;
+
+        }
+        System.out.println("game over. Winner is " + players.get(1 - curPlayerIndex).name);
+    }
+
+
+    public static boolean makeMove(Player dominant, Player victim, char shootPosition) {
+        for (int i = 0; i < victim.listOfShip.size(); i++) {
+            if (victim.listOfShip.get(i).uniqueSymbol == shootPosition) {
+                victim.listOfShip.get(i).hits--;
+                victim.battlefield[hitRow][hitCol] = successShoot;
+                dominant.enemyBattlefield[hitRow][hitCol] = successShoot;
+
+                if (victim.listOfShip.get(i).hits == 0) {
+                    System.out.println("\nУбилF ");
+                    victim.listOfShip.remove(victim.listOfShip.get(i));
+                } else {
+                    System.out.println("\nУхтыжёжик! Попал! ");
+                }
+                return true;
+            }
+        }
+        if (victim.battlefield[hitRow][hitCol] != 'X') {
+            System.out.println("Ес, бат ноу. Мимо");
+            victim.battlefield[hitRow][hitCol] = shootOver;
+            dominant.enemyBattlefield[hitRow][hitCol] = shootOver;
+            return false;
+        } else {
+            System.out.println("\nЗаряд дважды в одну воронку не попадает, рачина");
+            return false;
+        }
+
+    }
+
+    public static void prepareBattelfieldForPlayers() {
+        for (int i = 0; i < players.size(); i++) {
+            battlefieldInit(players.get(i).battlefield);
+            battlefieldInit(players.get(i).enemyBattlefield);
+            generateListOfShipsForPlayer(players.get(i), players.get(i).battlefield);
+        }
+    }
+
+    public static void generateListOfShipsForPlayer(Player player, char arr[][]) {
         for (int i = 0; i < arrayOfShips.size(); i++) {
 
             while (true) {
                 Ship ship = shipGeneration(arrayOfShips.get(i));
                 ship.uniqueSymbol = (char) (i + 'a');
-                if (isPlaceable(ship)) {
-                    placeShip(ship);
-                    listOfShip.add(ship);
+                if (isPlaceable(ship, arr)) {
+                    placeShip(ship, arr);
+                    player.listOfShip.add(ship);
+                    //  System.out.println("Ship row " + ship.row + " Ship col " + ship.column + " Symbol "
+                    // + ship.uniqueSymbol + " height " + ship.height + " width "  + ship.width);
                     break;
                 }
             }
-
-        }
-
-        printBattlefield();
-
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        while (listOfShip.size() != 0) {
-            enterShipPosition(reader);
-            System.out.println(hitCol + " col");
-            System.out.println(hitRow + " row");
-            System.out.println(battlefield[hitRow][hitCol]);
-            char c = battlefield[hitRow][hitCol];
-            for (int i = 0; i < listOfShip.size(); i++) {
-                if (listOfShip.get(i).uniqueSymbol == c) {
-                    System.out.println("Попал");
-                    battlefield[hitRow][hitCol] = successShoot;
-                    listOfShip.get(i).hits--;
-
-                    if (listOfShip.get(i).hits == 0) {
-                        System.out.println("Убил!");
-                        battlefield[hitRow][hitCol] = successShoot;
-                        listOfShip.remove(listOfShip.get(i));
-                    }
-                    break;
-                } else {
-                    System.out.println("мимо");
-                    battlefield[hitRow][hitCol] = shootOver;
-
-                }
-            }
-
-
-            printBattlefield();
 
         }
     }
 
+    public static void playerInit() {
+        Player player1 = new Player("usr1");
+        Player player2 = new Player("usr2");
+        players.add(player1);
+        players.add(player2);
+    }
 
-    public static void placeShip(Ship ship) {
-        placeRect(ship.row - 1, ship.column - 1, ship.height + 2, ship.width + 2, areaCloseToShip);
-        placeRect(ship.row, ship.column, ship.height, ship.width, ship.uniqueSymbol);
+
+    public static void placeShip(Ship ship, char arr[][]) {
+        placeRect(ship.row - 1, ship.column - 1, ship.height + 2, ship.width + 2, areaCloseToShip, arr);
+        placeRect(ship.row, ship.column, ship.height, ship.width, ship.uniqueSymbol, arr);
 
     }
 
     //размещаем прямоугольник. корабль или звездочки.
-    public static void placeRect(int row, int col, int height, int width, char sign) {
+    public static void placeRect(int row, int col, int height, int width, char sign, char arr[][]) {
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
                 int r = row + i;
                 int c = col + j;
-                if (r >= 0 && r <= battlefield.length - 1 && c >= 0 && c <= battlefield.length - 1) {
-                    battlefield[r][c] = sign;
+                if (r >= 0 && r <= arr.length - 1 && c >= 0 && c <= arr.length - 1) {
+                    arr[r][c] = sign;
                 } else {
                     continue;
                 }
@@ -97,7 +141,7 @@ public class SeaBattle {
     }
 
     // влазит ли корабль на поле. Не ставим ли мы его на корабль или на пространство вокруг корабля
-    public static boolean isPlaceable(Ship ship) {
+    public static boolean isPlaceable(Ship ship, char arr[][]) {
         if (ship.column + ship.width > battlefieldSize - 1) {
             //     System.out.println(ship.column + " col ");
             return false;
@@ -110,7 +154,7 @@ public class SeaBattle {
             for (int j = 0; j < ship.width; j++) {
                 int r = ship.row + i;
                 int c = ship.column + j;
-                if (battlefield[r][c] == shipSign || battlefield[r][c] == areaCloseToShip) {
+                if (arr[r][c] != '-') {
                     return false;
                 }
             }
@@ -126,8 +170,6 @@ public class SeaBattle {
         ship.row = random.nextInt(battlefieldSize);
         ship.column = random.nextInt(battlefieldSize);
         ship.hits = shipSize;
-        //   ship.uniqueSymbol = (char)(random.nextInt(10000) + 'A');
-
         int horizontal = random.nextInt(2);
         if (horizontal == 0) {
             ship.width = 1;
@@ -157,11 +199,17 @@ public class SeaBattle {
 
     public static void enterShipPosition(BufferedReader reader) throws IOException {
 
-        System.out.println("Введите координаты в формате РядСтолбец(C9)");
+        System.out.println("Куда бьем? Ввод в формате РядСтолбец(C9)");
 
         boolean isElementNotSet = true;
         while (isElementNotSet) {
-            String elem = reader.readLine().toUpperCase();
+            String elem = reader.readLine().toUpperCase().replaceAll(" ", "");
+            try {
+                Integer.parseInt(elem.substring(1));
+            } catch (Exception e) {
+                System.out.println("Число вторым, епта");
+                continue;
+            }
             if (elem.length() > 3 || elem.length() < 2) {
                 System.out.println("Что-то Вы вводите не то. Пример ввода: H6");
             } else if (columnIsValid(Integer.parseInt(elem.substring(1))) && rowIsValid(elem.charAt(0))) {
@@ -201,68 +249,65 @@ public class SeaBattle {
                         System.out.println("Something went wrong");
 
                 }
-
-                System.out.println("Ты молодец!");
+                System.out.println("Пли!");
                 isElementNotSet = false;
             } else {
                 System.out.println(" иди нахер. это сложная для тебя игра");
             }
 
         }
-        //  return elem;
 
     }
 
-    public static void battlefieldInit() {
-        battlefield = new char[battlefieldSize][battlefieldSize];
-        for (int i = 0; i < battlefield.length; i++) {
-            for (int j = 0; j < battlefield[i].length; j++) {
-                battlefield[i][j] = '-';
+    public static void battlefieldInit(char arr[][]) {
+        // arr = new char[battlefieldSize][battlefieldSize];
+        for (int i = 0; i < arr.length; i++) {
+            for (int j = 0; j < arr[i].length; j++) {
+                arr[i][j] = '-';
             }
         }
-
-        System.out.println(" Game set:  ");
-        printBattlefield();
-
-        System.out.println();
     }
 
-    public static void hideShip(char arr[][]) {
+    //todo доделай вывод?
+    public static void hideShip(Player player, char arr[][]) {
         for (int i = 0; i < arr.length; i++) {
             for (int j = 0; j < arr.length; j++) {
                 if (arr[i][j] != '*' && arr[i][j] != '-' && arr[i][j] != '0'
                         && arr[i][j] != 'X') {
                     System.out.print('@' + " ");
                 } else {
-                    System.out.print(battlefield[i][j] + " ");
+                    System.out.print(player.battlefield[i][j] + " ");
                 }
                 System.out.println();
             }
         }
     }
 
-    public static void printBattlefield() {
+    public static void printBattlefield(char arr[][]) {
         System.out.print("  ");
-        for (int i = 0; i < battlefield.length; i++) {
+        for (int i = 0; i < arr.length; i++) {
             System.out.print(i + 1 + " ");
         }
-        for (int i = 0; i < battlefield.length; i++) {
+        for (int i = 0; i < arr.length; i++) {
             System.out.print("\n" + rowName[i] + " ");
-            for (int j = 0; j < battlefield[i].length; j++) {
-                System.out.print(battlefield[i][j] + " ");
+            for (int j = 0; j < arr[i].length; j++) {
+                System.out.print(arr[i][j] + " ");
             }
 
         }
 
     }
 
-    public void shipInfo() {
+    public static void shipInfo(Player player) {
+        System.out.println("\nОсталось кораблей: " + player.listOfShip.size());
+    }
 
+    public static boolean isFinished(Player player, Player player2) {
+        if (player.listOfShip.size() == 0 || player2.listOfShip.size() == 0) {
+            return true;
+        }
+        return false;
     }
 
 }
-//todo Ship Info method
-// todo второй массив для игры, где отмечать вражину
-// todo игроков
-// todo механизм скрытия игровых полей
-//todo запрещать стрелять в стрелянную клетку
+
